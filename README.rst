@@ -432,6 +432,52 @@ Integration tests require PostgreSQL (provided via ``pytest-docker-fixtures``).
 Tests run with ``DATABASE=DUMMY`` skip the PostgreSQL-backed cases.
 
 
+Releasing
+---------
+
+Publishing is automated and requires no PyPI token on any machine.
+
+**One-time PyPI setup (Trusted Publishing).** On PyPI, configure a trusted
+publisher for this project so GitHub Actions can upload via OIDC:
+
+- Go to the project's *Publishing* settings (or *Your projects -> Manage ->
+  Publishing*) at https://pypi.org/manage/account/publishing/
+- Add a *GitHub* publisher with:
+
+  - Owner: ``guillotinaweb``
+  - Repository: ``guillotina_oauth_server``
+  - Workflow filename: ``release.yml``
+  - Environment name: ``pypi``
+
+- In the GitHub repo, create an *Environment* named ``pypi``
+  (*Settings -> Environments*). Optionally add required reviewers so a release
+  must be approved before it is published.
+
+No secrets are stored anywhere; PyPI trusts the workflow identity directly.
+
+**Cutting a release.** Version, changelog, tag and the dev-version bump are all
+handled by ``zest.releaser`` (already configured in ``setup.cfg``)::
+
+    pip install zest.releaser
+    fullrelease
+
+``fullrelease`` interactively:
+
+1. sets the final version in ``VERSION`` and dates the ``CHANGELOG.rst`` entry,
+2. commits and creates a ``vX.Y.Z`` git tag,
+3. pushes the commit and tag,
+4. bumps ``VERSION`` to the next ``.devN`` and adds a new changelog section.
+
+**Publishing.** After ``fullrelease`` pushes the tag, create a *GitHub Release*
+for that tag (e.g. ``vX.Y.Z``). This triggers ``.github/workflows/release.yml``,
+which builds the sdist/wheel, runs ``twine check``, verifies the tag matches the
+``VERSION`` file, and publishes to PyPI via Trusted Publishing.
+
+To avoid having ``zest.releaser`` upload to PyPI itself (CI does that), answer
+"no" when it asks to upload, or set ``release = no`` under ``[zest.releaser]``
+in ``setup.cfg``.
+
+
 License
 -------
 
