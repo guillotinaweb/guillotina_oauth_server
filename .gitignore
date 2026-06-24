@@ -22,3 +22,24 @@ venv/*
 env/
 .python-version
 .DS_Store
+
+# Secrets / credentials (never commit these)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets.*
+credentials.*
+config.yaml
+config.yml
+config.json
+!config.yaml.example
+!config.yml.example
+!config.json.example
