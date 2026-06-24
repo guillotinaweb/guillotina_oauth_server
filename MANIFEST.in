@@ -1,0 +1,10 @@
+include *.py
+include *.rst
+include *.cfg
+include VERSION
+include LICENSE
+recursive-include guillotina_oauth_server *.py
+recursive-include guillotina_oauth_server *.html
+recursive-include guillotina_oauth_server *.css
+recursive-include guillotina_oauth_server *.svg
+recursive-include guillotina_oauth_server py.typed

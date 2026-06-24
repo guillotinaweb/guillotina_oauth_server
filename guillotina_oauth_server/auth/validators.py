@@ -1,0 +1,56 @@
+import jwt
+from guillotina import app_settings, task_vars
+from guillotina.auth import find_user
+
+from guillotina_oauth_server.auth.context import OAuthTokenContext
+from guillotina_oauth_server.flow.scopes import OAUTH_DEFAULT_SCOPE
+from guillotina_oauth_server.indicators.access import required_resource_indicator
+from guillotina_oauth_server.utils.crypto import access_token_signing_key
+from guillotina_oauth_server.utils.urls import container_issuer_url
+
+
+class OAuthJWTValidator:
+    for_validators = ("bearer",)
+
+    async def validate(self, token):
+        if token.get("type") not in self.for_validators:
+            return
+        raw = token.get("token", "")
+        if "." not in raw:
+            return
+        try:
+            claims = jwt.decode(
+                raw,
+                access_token_signing_key(),
+                algorithms=[app_settings["jwt"]["algorithm"]],
+                options={"verify_aud": False},
+            )
+        except (jwt.exceptions.PyJWTError, KeyError):
+            return
+        if claims.get("token_type") != "oauth_access_token":
+            return
+        request = task_vars.request.get(None)
+        container = task_vars.container.get(None)
+        if request is not None and container is not None:
+            issuer = container_issuer_url(request, container)
+            if claims.get("iss") != issuer:
+                return
+            aud = set(claims.get("aud") or [])
+            if required_resource_indicator(request, container) not in aud:
+                return
+        if not claims.get("client_id"):
+            return
+        scopes = set((claims.get("scope") or "").split())
+        if OAUTH_DEFAULT_SCOPE not in scopes:
+            return
+        token["id"] = claims.get("id", claims.get("sub"))
+        token["decoded"] = claims
+        user = await find_user(token)
+        if user is not None and user.id == token["id"] and request is not None:
+            request.oauth = OAuthTokenContext(
+                client_id=claims.get("client_id"),
+                scopes=frozenset(scopes),
+                resource_indicators=frozenset(claims.get("aud") or []),
+                claims=claims,
+            )
+        return user
