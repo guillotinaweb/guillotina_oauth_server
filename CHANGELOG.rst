@@ -1,8 +1,8 @@
 CHANGELOG
 =========
 
-1.0.1.dev0 (unreleased)
------------------------
+1.0.1 (2026-06-24)
+------------------
 
 - Add automated PyPI publishing via GitHub Actions using Trusted Publishing
   (OIDC); no API token is stored. Releases are cut with ``zest.releaser`` and
