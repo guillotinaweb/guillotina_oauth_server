@@ -283,15 +283,15 @@ Architecture: protocol phases
 
 The package is organized around the three phases of the protocol:
 
-============================  ====================  ====================
-Phase                         Module                RFC
-============================  ====================  ====================
-Discovery                     ``discovery/``        RFC 8414, RFC 9728
-Grant (resource validation)   ``indicators/grant``  RFC 8707
-Access (token validation)     ``indicators/access``, ``auth/``  RFC 8707
-Token issuance                ``flow/``             RFC 6749
-MCP integration               ``integrations/mcp/`` --
-============================  ====================  ====================
+===========================  ================================  ==================
+Phase                        Module                            RFC
+===========================  ================================  ==================
+Discovery                    ``discovery/``                    RFC 8414, RFC 9728
+Grant (resource validation)  ``indicators/grant``              RFC 8707
+Access (token validation)    ``indicators/access``, ``auth/``  RFC 8707
+Token issuance               ``flow/``                         RFC 6749
+MCP integration              ``integrations/mcp/``             --
+===========================  ================================  ==================
 
 
 Resource indicators (RFC 8707)
