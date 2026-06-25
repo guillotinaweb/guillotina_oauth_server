@@ -28,6 +28,7 @@
 - Rate limits are disabled by setting the relevant limit to `0`; Redis-backed counters are used only when both `guillotina.contrib.redis` is in `applications` and `redis` settings are present, otherwise limits are per-process memory.
 
 ## Release Notes
+- Every PR must add an entry to `CHANGELOG.rst` under the top `X.Y.Z (unreleased)` section, using the Guillotina format (a `- description.` bullet followed by an indented `[nick]` line); the `changelog` CI job fails PRs that do not touch `CHANGELOG.rst` unless the `skip changelog` label is applied.
 - Formatting config is split: Black line length is 110 (`pyproject.toml`), while flake8 max line length is 120 (`setup.cfg`).
 - `setup.cfg` sets `zest.releaser` `release = no`; local `fullrelease` should not upload to PyPI because GitHub Release publishing uses Trusted Publishing.
 - The release workflow publishes only when a GitHub Release is published, and it fails if the tag `vX.Y.Z` does not match the `VERSION` file.
