@@ -18,8 +18,11 @@ CHANGELOG
   [rboixaderg]
 
 - CI: pin and run gitleaks directly for secret scanning instead of the
-  marketplace action, and fail pull requests that do not update ``CHANGELOG.rst``
-  (use the ``skip changelog`` label to opt out).
+  marketplace action.
+  [rboixaderg]
+
+- CI: fail pull requests that do not update ``CHANGELOG.rst`` (use the
+  ``skip changelog`` label to opt out for changes that need no release note).
   [rboixaderg]
 
 1.0.1 (2026-06-24)
