@@ -1,13 +1,12 @@
 import jwt
 import pytest
 from guillotina._settings import app_settings
-from guillotina.auth import validators
 from guillotina.content import Container
 from guillotina.response import HTTPBadRequest
 from guillotina.tests.utils import make_mocked_request
 
 from guillotina_oauth_server.api.pages import oauth_error_page
-from guillotina_oauth_server.auth.validators import OAuthJWTValidator
+from guillotina_oauth_server.auth.validators import JWTValidator, OAuthJWTValidator
 from guillotina_oauth_server.flow.clients import build_client_from_registration, scopes_registered_for_client
 from guillotina_oauth_server.flow.tokens import issue_access_token
 from guillotina_oauth_server.indicators.access import required_resource_indicator
@@ -43,7 +42,7 @@ async def test_generic_jwt_validator_rejects_oauth_token_type(dummy_guillotina):
         app_settings["jwt"]["secret"],
         algorithm=app_settings["jwt"]["algorithm"],
     )
-    assert await validators.JWTValidator().validate({"type": "bearer", "token": token}) is None
+    assert await JWTValidator().validate({"type": "bearer", "token": token}) is None
 
 
 @pytest.mark.asyncio
@@ -58,6 +57,12 @@ async def test_oauth_access_token_only_accepts_bearer_transport(token_type, dumm
         scope=["guillotina:access"],
     )
     assert await OAuthJWTValidator().validate({"type": token_type, "token": access_token}) is None
+
+
+def test_mcp_oauth_access_imports_without_mcp_auth_policy():
+    from guillotina_oauth_server.integrations.mcp import access
+
+    assert access.OAuthMCPAuthPolicy is not None
 
 
 @pytest.mark.asyncio

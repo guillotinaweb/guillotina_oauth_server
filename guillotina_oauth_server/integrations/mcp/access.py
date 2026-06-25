@@ -1,8 +1,4 @@
-"""MCP required indicator resolver and auth policy (access phase)."""
-
-from guillotina import app_settings, configure
-from guillotina.contrib.mcp.interfaces import IMCPAuthPolicy
-from zope.interface import implementer
+"""MCP required indicator resolver and OAuth challenge headers (access phase)."""
 
 from guillotina_oauth_server.discovery.urls import well_known_protected_resource_url
 from guillotina_oauth_server.flow.scopes import OAUTH_DEFAULT_SCOPE
@@ -14,15 +10,7 @@ def _mcp_protocol_audience_resolver(request, container):
         return mcp_resource_indicator(request, container)
 
 
-@configure.utility(provides=IMCPAuthPolicy)
-@implementer(IMCPAuthPolicy)
 class OAuthMCPAuthPolicy:
-    def is_enabled(self, request, context):
-        app = getattr(getattr(request, "application", None), "app", None)
-        settings = getattr(app, "settings", None) or app_settings
-        applications = set(settings.get("applications") or [])
-        return "guillotina_oauth_server" in applications and "guillotina.contrib.mcp" in applications
-
     def unauthorized_headers(self, request, context):
         authz = request.headers.get("AUTHORIZATION", "") or request.headers.get("Authorization", "")
         if authz.lower().startswith("bearer "):
@@ -49,9 +37,3 @@ class OAuthMCPAuthPolicy:
         if error_description:
             parts.append(f'error_description="{error_description}"')
         return {"WWW-Authenticate": ", ".join(parts)}
-
-    def is_authorized(self, request, context):
-        oauth = getattr(request, "oauth", None)
-        if oauth is None:
-            return True
-        return mcp_resource_indicator(request, context) in oauth.resource_indicators
