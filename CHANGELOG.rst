@@ -4,7 +4,14 @@ CHANGELOG
 1.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Release: tag releases as ``vX.Y.Z`` via ``zest.releaser`` ``tag-format`` for
+  consistency with the existing ``v1.0.0``/``v1.0.1`` tags.
+  [rboixaderg]
+
+- CI: bump GitHub Actions to their Node.js 24 majors (``checkout@v7``,
+  ``setup-python@v6``, ``upload-artifact@v7``, ``download-artifact@v8``) to clear
+  the Node.js 20 deprecation warnings.
+  [rboixaderg]
 
 
 1.0.2 (2026-06-25)
