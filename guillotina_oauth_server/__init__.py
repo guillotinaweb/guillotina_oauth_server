@@ -42,7 +42,7 @@ app_settings = {
     "auth_token_validators": [
         "guillotina_oauth_server.auth.validators.OAuthJWTValidator",
         "guillotina.auth.validators.SaltedHashPasswordValidator",
-        "guillotina.auth.validators.JWTValidator",
+        "guillotina_oauth_server.auth.validators.JWTValidator",
     ],
     "load_utilities": {
         "oauth_storage": {
@@ -67,4 +67,4 @@ def includeme(root, settings):
         configure.scan("guillotina_oauth_server.integrations.mcp")
         from guillotina_oauth_server.integrations.mcp import register_mcp_oauth_integration
 
-        register_mcp_oauth_integration()
+        register_mcp_oauth_integration(settings)

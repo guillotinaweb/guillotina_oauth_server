@@ -1,12 +1,29 @@
 import jwt
 from guillotina import app_settings, task_vars
 from guillotina.auth import find_user
+from guillotina.auth.validators import JWTValidator as GuillotinaJWTValidator
 
 from guillotina_oauth_server.auth.context import OAuthTokenContext
 from guillotina_oauth_server.flow.scopes import OAUTH_DEFAULT_SCOPE
 from guillotina_oauth_server.indicators.access import required_resource_indicator
 from guillotina_oauth_server.utils.crypto import access_token_signing_key
 from guillotina_oauth_server.utils.urls import container_issuer_url
+
+
+class JWTValidator(GuillotinaJWTValidator):
+    async def validate(self, token):
+        raw = token.get("token", "")
+        if "." in raw:
+            try:
+                claims = jwt.decode(
+                    raw, options={"verify_signature": False, "verify_exp": False, "verify_aud": False}
+                )
+            except jwt.exceptions.PyJWTError:
+                pass
+            else:
+                if claims.get("token_type") == "oauth_access_token":
+                    return
+        return await super().validate(token)
 
 
 class OAuthJWTValidator:
