@@ -1,8 +1,8 @@
 CHANGELOG
 =========
 
-1.0.2.dev0 (unreleased)
------------------------
+1.0.2 (2026-06-25)
+------------------
 
 - Reject OAuth access tokens in the generic Guillotina JWT validator: a custom
   ``guillotina_oauth_server.auth.validators.JWTValidator`` now replaces
