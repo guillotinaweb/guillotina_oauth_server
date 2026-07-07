@@ -4,11 +4,10 @@ from datetime import timezone
 import pytest
 from guillotina import task_vars
 
-from guillotina_oauth_server.storage import utility
 from guillotina_oauth_server.storage.access import get_oauth_store, oauth_container_db_key
 from guillotina_oauth_server.storage.interfaces import IOAuthStore
 from guillotina_oauth_server.storage.pg.repository import PostgresOAuthStore, _parse_dt
-from guillotina_oauth_server.storage.pg.schema import OAUTH_DDL
+from guillotina_oauth_server.storage.pg.schema import OAUTH_BASELINE_DDL
 
 
 def assert_oauth_store(store):
@@ -33,13 +32,13 @@ def test_oauth_container_db_key_includes_database_id():
 
 
 def test_oauth_schema_uses_container_db_key():
-    ddl = "\n".join(OAUTH_DDL)
+    ddl = "\n".join(OAUTH_BASELINE_DDL)
     assert "container_db_key text NOT NULL" in ddl
     assert "container_id text NOT NULL" not in ddl
 
 
 def test_oauth_schema_avoids_postgresql_specific_cleanup_function():
-    ddl = "\n".join(OAUTH_DDL).lower()
+    ddl = "\n".join(OAUTH_BASELINE_DDL).lower()
     assert "create or replace function oauth_cleanup_expired" not in ddl
     assert "ctid" not in ddl
 
@@ -52,39 +51,3 @@ def test_get_oauth_store_without_pg_raises():
 def test_oauth_repository_parses_naive_datetimes_as_utc():
     parsed = _parse_dt("2026-01-01T00:00:00")
     assert parsed.tzinfo == timezone.utc
-
-
-@pytest.mark.asyncio
-async def test_ensure_oauth_tables_tracks_initialization_per_pool(monkeypatch):
-    class FakeAcquire:
-        def __init__(self, pool):
-            self.pool = pool
-
-        async def __aenter__(self):
-            return self.pool
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    class FakePool:
-        def __init__(self):
-            self.executed = []
-
-        def acquire(self):
-            return FakeAcquire(self)
-
-        async def execute(self, ddl):
-            self.executed.append(ddl)
-
-    monkeypatch.setattr(utility, "OAUTH_DDL", ["SELECT 1"])
-    monkeypatch.setattr(utility, "_ddl_initialized", set())
-
-    first_storage = type("Storage", (), {"pool": FakePool()})()
-    second_storage = type("Storage", (), {"pool": FakePool()})()
-
-    await utility.ensure_oauth_tables(first_storage)
-    await utility.ensure_oauth_tables(first_storage)
-    await utility.ensure_oauth_tables(second_storage)
-
-    assert first_storage.pool.executed == ["SELECT 1"]
-    assert second_storage.pool.executed == ["SELECT 1"]

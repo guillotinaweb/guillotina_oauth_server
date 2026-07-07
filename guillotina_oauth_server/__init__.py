@@ -24,7 +24,7 @@ app_settings = {
         # Set ``registration_rate_limit`` to 0 to disable.
         "registration_rate_limit": 20,
         "registration_rate_window": 600,
-        # When True, startup raises an error if schema is outdated or legacy.
+        # When True, startup raises an error if schema is outdated or unversioned.
         # Recommended for production; default False for dev/test environments.
         "schema_strict": False,
         # Failed-login throttling at the authorization endpoint (per client IP +

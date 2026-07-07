@@ -183,12 +183,12 @@ Database schema and upgrades
 ----------------------------
 
 OAuth uses a versioned PostgreSQL schema. Fresh installations automatically
-bootstrap the schema on startup. Existing environments must run the migration
-command before upgrading.
+bootstrap the schema on startup. Existing environments should run the migration
+command before deploying code that expects a newer schema.
 
-The ``oauth_schema_meta`` table tracks the current schema version, and
-``oauth_schema_migration_log`` records every applied migration with timestamps,
-SQL hashes, and success/failure status for auditability.
+The ``oauth_schema_meta`` table tracks the current schema version. Migrations
+are forward-only and are applied transactionally from the registered
+``OAUTH_MIGRATIONS`` entries.
 
 When Guillotina starts and no OAuth tables exist, the baseline schema
 (version 1) is created automatically. An advisory lock (``pg_advisory_lock``)
@@ -210,6 +210,54 @@ Upgrade existing environments:
     # Phase 4: Verify
     g -c config.yaml oauth-migrate --show-version
 
+Databases that already have OAuth data tables but no ``oauth_schema_meta`` are
+treated as unversioned. ``oauth-migrate`` validates them against the version 1
+baseline, adopts them as version 1 when compatible, and then applies any pending
+forward migrations.
+
+Adding a schema migration
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema migrations are forward-only. To add version ``N``:
+
+1. Increment ``OAUTH_SCHEMA_VERSION`` in
+   ``guillotina_oauth_server/storage/pg/schema.py``.
+2. Update ``OAUTH_BASELINE_DDL`` so fresh installations create the final schema
+   directly.
+3. Update ``OAUTH_BASELINE_COLUMNS`` so unversioned existing schemas can still be
+   validated against the version 1 baseline.
+4. Add the migration SQL statements under ``OAUTH_MIGRATIONS[N]`` in
+   ``guillotina_oauth_server/storage/pg/migrations.py``.
+5. Add focused coverage in
+   ``guillotina_oauth_server/tests/test_oauth_schema_migration.py``.
+6. Add a ``CHANGELOG.rst`` entry.
+
+Example:
+
+.. code-block:: python
+
+    # schema.py
+    OAUTH_SCHEMA_VERSION = 2
+
+    # migrations.py
+    OAUTH_MIGRATIONS = {
+        2: [
+            "ALTER TABLE oauth_clients ADD COLUMN client_uri text",
+            "CREATE INDEX IF NOT EXISTS oauth_clients_client_uri_idx ON oauth_clients (client_uri)",
+        ],
+    }
+
+Do not skip versions: if the code schema version is ``3``, migrations for both
+``2`` and ``3`` must be registered. Each version is applied inside a PostgreSQL
+transaction and ``oauth_schema_meta.version`` is updated only after all SQL for
+that version succeeds. Avoid PostgreSQL DDL that must run outside a transaction,
+such as ``CREATE INDEX CONCURRENTLY``, unless the migrator is deliberately
+changed to support it.
+
+For production deployments, make the new code available for running
+``oauth-migrate``, run the migration, then serve application traffic with the
+code that expects the new schema.
+
 Always take a database backup before running ``g oauth-migrate`` in production:
 
 .. code-block:: shell
@@ -221,9 +269,6 @@ Additional command flags:
 .. code-block:: shell
 
     g oauth-migrate --database db           # Target a specific database
-    g oauth-migrate --target-version 3      # Migrate to a specific version
-    g oauth-migrate --rollback              # Rollback last migration (requires backward_sql)
-    g oauth-migrate --bootstrap-legacy      # Mark pre-versioning tables as version 1
 
 For production, enable strict mode so startup fails immediately on schema
 mismatch:

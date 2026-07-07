@@ -9,7 +9,7 @@ from zope.interface import implementer
 
 from guillotina_oauth_server.interfaces import IOAuthStorageUtility
 from guillotina_oauth_server.storage.pg.repository import cleanup_expired
-from guillotina_oauth_server.storage.pg.schema import OAUTH_DDL, OAUTH_SCHEMA_VERSION
+from guillotina_oauth_server.storage.pg.schema import OAUTH_SCHEMA_VERSION
 from guillotina_oauth_server.storage.pg.schema_ops import (
     SchemaStatus,
     get_oauth_schema_version,
@@ -45,25 +45,6 @@ def get_oauth_storage_settings():
     return settings
 
 
-async def ensure_oauth_tables(storage):
-    import asyncpg.exceptions
-
-    storage_key = id(storage.pool)
-    if storage_key in _ddl_initialized:
-        return
-    async with storage.pool.acquire() as conn:
-        for ddl in OAUTH_DDL:
-            for attempt in range(3):
-                try:
-                    await conn.execute(ddl)
-                    break
-                except asyncpg.exceptions.UniqueViolationError:
-                    if attempt == 2:
-                        raise
-                    await asyncio.sleep(0.05)
-    _ddl_initialized.add(storage_key)
-
-
 async def ensure_oauth_schema(storage):
     storage_key = id(storage.pool)
     if storage_key in _ddl_initialized:
@@ -83,19 +64,19 @@ async def ensure_oauth_schema(storage):
             _ddl_initialized.add(storage_key)
             return SchemaStatus.VERSIONED
 
-        if status == SchemaStatus.LEGACY:
+        if status == SchemaStatus.UNVERSIONED:
             logger.error(
-                "OAuth schema is in legacy state (tables exist but no oauth_schema_meta). "
-                "Run 'g oauth-migrate --bootstrap-legacy' to mark as versioned."
+                "OAuth schema is unversioned (tables exist but no oauth_schema_meta). "
+                "Run 'g oauth-migrate' to adopt it as version 1 and apply pending migrations."
             )
             if schema_strict:
-                raise RuntimeError("OAuth legacy schema detected with schema_strict=true")
+                raise RuntimeError("OAuth unversioned schema detected with schema_strict=true")
             return status
 
         if status == SchemaStatus.PARTIAL:
             logger.error(
                 "OAuth schema is in a partial/corrupt state. "
-                "Drop oauth_* tables or run 'g oauth-migrate --bootstrap-legacy' to recover."
+                "Drop oauth_* tables or fix the schema manually before running 'g oauth-migrate'."
             )
             if schema_strict:
                 raise RuntimeError("OAuth partial schema detected with schema_strict=true")

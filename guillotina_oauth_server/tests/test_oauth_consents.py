@@ -127,10 +127,10 @@ async def test_consent_ttl_expires(guillotina_main):
     from guillotina.transactions import transaction
 
     from guillotina_oauth_server.storage.pg.repository import PostgresOAuthStore
-    from guillotina_oauth_server.storage.utility import ensure_oauth_tables
+    from guillotina_oauth_server.storage.utility import ensure_oauth_schema
 
     root = get_utility(IApplication, name="root")
-    await ensure_oauth_tables(root["db"].storage)
+    await ensure_oauth_schema(root["db"].storage)
 
     async with transaction(db=root["db"]):
         store = PostgresOAuthStore("db/consent-ttl")
@@ -162,10 +162,10 @@ async def test_consent_ttl_zero_never_expires(guillotina_main):
     from guillotina.transactions import transaction
 
     from guillotina_oauth_server.storage.pg.repository import PostgresOAuthStore
-    from guillotina_oauth_server.storage.utility import ensure_oauth_tables
+    from guillotina_oauth_server.storage.utility import ensure_oauth_schema
 
     root = get_utility(IApplication, name="root")
-    await ensure_oauth_tables(root["db"].storage)
+    await ensure_oauth_schema(root["db"].storage)
 
     async with transaction(db=root["db"]):
         store = PostgresOAuthStore("db/consent-ttl-zero")

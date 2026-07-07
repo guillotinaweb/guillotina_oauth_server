@@ -4,6 +4,23 @@ CHANGELOG
 1.0.3 (unreleased)
 ------------------
 
+- Schema: simplify the OAuth PostgreSQL schema migrator to a minimal
+  forward-only model. The package now keeps ``oauth_schema_meta.version`` as the
+  authoritative state, applies registered ``OAUTH_MIGRATIONS`` transactionally,
+  and drops the unused rollback/backward-SQL/audit-log machinery until there is a
+  concrete operational need for it.
+  [rboixaderg]
+
+- Schema: collapse the duplicated baseline DDL to a single source of truth
+  (``OAUTH_BASELINE_DDL``) and drop the dead pre-versioning
+  ``ensure_oauth_tables``/``OAUTH_DDL`` path together with its redundant
+  defensive ``ALTER ... ADD COLUMN`` statements (those columns are already
+  declared by the ``CREATE TABLE`` statements). Existing OAuth data tables
+  without ``oauth_schema_meta`` are treated as unversioned schemas that
+  ``oauth-migrate`` can validate against the v1 baseline and adopt before
+  applying future forward migrations.
+  [rboixaderg]
+
 - Release: tag releases as ``vX.Y.Z`` via ``zest.releaser`` ``tag-format`` for
   consistency with the existing ``v1.0.0``/``v1.0.1`` tags.
   [rboixaderg]
