@@ -1,7 +1,7 @@
 CHANGELOG
 =========
 
-1.0.3 (unreleased)
+1.0.3 (2026-07-07)
 ------------------
 
 - Schema: simplify the OAuth PostgreSQL schema migrator to a minimal
