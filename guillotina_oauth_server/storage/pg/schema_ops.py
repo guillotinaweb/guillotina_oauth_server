@@ -1,8 +1,6 @@
 import asyncio
 import enum
-import hashlib
 import logging
-import time
 
 from guillotina_oauth_server.storage.pg.schema import (
     OAUTH_BASELINE_COLUMNS,
@@ -23,7 +21,7 @@ class SchemaStatus(enum.Enum):
     VERSIONED = "versioned"
     NEEDS_MIGRATION = "needs_migration"
     CODE_TOO_OLD = "code_too_old"
-    LEGACY = "legacy"
+    UNVERSIONED = "unversioned"
     PARTIAL = "partial"
 
 
@@ -35,6 +33,8 @@ async def get_schema_status(conn) -> SchemaStatus:
     table_existence = await _check_oauth_tables(conn)
 
     if meta_exists:
+        if table_existence["all"] is not True:
+            return SchemaStatus.PARTIAL
         row = await conn.fetchrow("SELECT version FROM oauth_schema_meta WHERE id = 1")
         if row is None or row["version"] is None:
             return SchemaStatus.PARTIAL
@@ -49,7 +49,7 @@ async def get_schema_status(conn) -> SchemaStatus:
         if table_existence["any"] == 0:
             return SchemaStatus.EMPTY
         elif table_existence["any"] > 0 and table_existence["all"] is True:
-            return SchemaStatus.LEGACY
+            return SchemaStatus.UNVERSIONED
         else:
             return SchemaStatus.PARTIAL
 
@@ -81,26 +81,10 @@ async def set_oauth_schema_version(conn, version):
     )
 
 
-async def bootstrap_legacy_schema(conn):
-    await conn.execute(
-        "CREATE TABLE IF NOT EXISTS oauth_schema_meta ("
-        "    id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),"
-        "    version int NOT NULL"
-        ")"
-    )
-    await conn.execute(
-        "CREATE TABLE IF NOT EXISTS oauth_schema_migration_log ("
-        "    id serial PRIMARY KEY,"
-        "    applied_at timestamptz NOT NULL DEFAULT now(),"
-        "    from_version int,"
-        "    to_version int NOT NULL,"
-        "    migration_index int NOT NULL,"
-        "    sql_hash text NOT NULL,"
-        "    success boolean NOT NULL,"
-        "    error_message text,"
-        "    duration_ms int"
-        ")"
-    )
+async def mark_existing_schema_as_v1(conn):
+    from guillotina_oauth_server.storage.pg.schema import OAUTH_SCHEMA_META_DDL
+
+    await conn.execute(OAUTH_SCHEMA_META_DDL)
     await set_oauth_schema_version(conn, 1)
 
 
@@ -131,12 +115,12 @@ async def install_oauth_baseline(conn):
         try:
             for ddl in OAUTH_BASELINE_DDL:
                 await conn.execute(ddl)
+            await set_oauth_schema_version(conn, OAUTH_SCHEMA_VERSION)
             await conn.execute("COMMIT")
         except Exception:
             await conn.execute("ROLLBACK")
             raise
 
-        await set_oauth_schema_version(conn, OAUTH_SCHEMA_VERSION)
         return SchemaStatus.VERSIONED
     finally:
         await conn.execute(
@@ -148,64 +132,41 @@ async def run_oauth_migrations(conn, from_version, to_version, migrations, dry_r
     results = []
     for v in range(from_version + 1, to_version + 1):
         if v not in migrations:
-            continue
-        for idx, (forward_sql, _backward_sql) in enumerate(migrations[v]):
-            sql_hash = hashlib.sha256(forward_sql.encode("utf-8")).hexdigest()
-            start = time.monotonic()
-            success = False
-            error_message = None
-            try:
-                await conn.execute("BEGIN")
-                await conn.execute(forward_sql)
-                if not dry_run:
-                    await set_oauth_schema_version(conn, v)
-                    await conn.execute("COMMIT")
-                else:
-                    await conn.execute("ROLLBACK")
-                success = True
-            except Exception as exc:
+            raise RuntimeError(f"OAuth migration to schema version {v} is not registered")
+        success = False
+        error_message = None
+        try:
+            await conn.execute("BEGIN")
+            for sql in migrations[v]:
+                await conn.execute(sql)
+            if dry_run:
                 await conn.execute("ROLLBACK")
-                error_message = str(exc)
-                logger.error(
-                    "OAuth migration v%s→%s idx=%s failed: %s",
-                    from_version,
-                    v,
-                    idx,
-                    error_message,
-                )
-            duration_ms = int((time.monotonic() - start) * 1000)
+            else:
+                await set_oauth_schema_version(conn, v)
+                await conn.execute("COMMIT")
+            success = True
+        except Exception as exc:
+            await conn.execute("ROLLBACK")
+            error_message = str(exc)
+            logger.error("OAuth migration v%s→%s failed: %s", v - 1, v, error_message)
 
-            if not dry_run and success:
-                await record_migration_log(
-                    conn,
-                    from_version=v - 1,
-                    to_version=v,
-                    migration_index=idx,
-                    sql_hash=sql_hash,
-                    success=True,
-                    error_message=None,
-                    duration_ms=duration_ms,
-                )
+        results.append(
+            {
+                "from_version": v - 1,
+                "to_version": v,
+                "statement_count": len(migrations[v]),
+                "success": success,
+                "error_message": error_message,
+            }
+        )
 
-            results.append(
-                {
-                    "from_version": v - 1,
-                    "to_version": v,
-                    "migration_index": idx,
-                    "sql_hash": sql_hash,
-                    "success": success,
-                    "error_message": error_message,
-                    "duration_ms": duration_ms,
-                }
-            )
-
-            if not success:
-                return results
+        if not success:
+            return results
 
     return results
 
 
-async def validate_legacy_schema(conn):
+async def validate_unversioned_baseline(conn):
     compatible = True
     diff_messages = []
 
@@ -238,20 +199,3 @@ async def validate_legacy_schema(conn):
             diff_messages.append(f"{table_name}: table does not exist in public schema")
 
     return compatible, diff_messages
-
-
-async def record_migration_log(
-    conn, *, from_version, to_version, migration_index, sql_hash, success, error_message, duration_ms
-):
-    await conn.execute(
-        "INSERT INTO oauth_schema_migration_log "
-        "(from_version, to_version, migration_index, sql_hash, success, error_message, duration_ms) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        from_version,
-        to_version,
-        migration_index,
-        sql_hash,
-        success,
-        error_message,
-        duration_ms,
-    )

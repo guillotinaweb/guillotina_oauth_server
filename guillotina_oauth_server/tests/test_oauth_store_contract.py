@@ -96,10 +96,10 @@ async def test_postgresql_oauth_store_contract(guillotina_main):
     from guillotina.interfaces import IApplication
 
     from guillotina_oauth_server.storage.pg.repository import PostgresOAuthStore
-    from guillotina_oauth_server.storage.utility import ensure_oauth_tables
+    from guillotina_oauth_server.storage.utility import ensure_oauth_schema
 
     root = get_utility(IApplication, name="root")
-    await ensure_oauth_tables(root["db"].storage)
+    await ensure_oauth_schema(root["db"].storage)
 
     async with transaction(db=root["db"]):
         store = PostgresOAuthStore("db/pg-contract")
@@ -122,11 +122,11 @@ async def test_oauth_flow_with_postgresql_store(container_install_requester):
     from guillotina.component import get_utility
     from guillotina.interfaces import IApplication
 
-    from guillotina_oauth_server.storage.utility import ensure_oauth_tables
+    from guillotina_oauth_server.storage.utility import ensure_oauth_schema
     from guillotina_oauth_server.tests.conftest import authorize_code, register_client, token_from_code
 
     root = get_utility(IApplication, name="root")
-    await ensure_oauth_tables(root["db"].storage)
+    await ensure_oauth_schema(root["db"].storage)
 
     async with container_install_requester as requester:
         client = await register_client(requester)

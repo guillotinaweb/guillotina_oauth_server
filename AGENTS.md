@@ -18,7 +18,7 @@
 - OAuth storage is PostgreSQL-only: `get_oauth_store()` requires an active Guillotina transaction whose storage provides `IPostgresStorage`.
 - Stored rows are scoped by `storage/access.py` as `db_id/container.id`, not just container id.
 - Fresh PostgreSQL installs bootstrap the versioned baseline schema automatically; existing environments use `g -c config.yaml oauth-migrate --dry-run`, then `g -c config.yaml oauth-migrate`, then `g -c config.yaml oauth-migrate --show-version`.
-- Legacy tables without `oauth_schema_meta` must be handled with `g oauth-migrate --bootstrap-legacy`; `oauth.schema_strict=true` turns legacy/outdated schema warnings into startup errors, and DB schema newer than code always raises.
+- Existing OAuth tables without `oauth_schema_meta` are unversioned; `g oauth-migrate` validates them against the v1 baseline, adopts them as version 1 when compatible, and then applies forward migrations. `oauth.schema_strict=true` turns unversioned/outdated schema warnings into startup errors, and DB schema newer than code always raises.
 - For schema changes, update `storage/pg/schema.py` (`OAUTH_SCHEMA_VERSION`, baseline DDL, and baseline column map), add migration SQL in `storage/pg/migrations.py`, and cover it in `tests/test_oauth_schema_migration.py`.
 
 ## Behavior Gotchas
